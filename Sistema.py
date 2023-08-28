@@ -19,6 +19,16 @@ numeros = range(1,100000)
 momento = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
 codigo_venda= random.choice(numeros)
 
+
+
+# FUNÇÃO PARA INSERIR INFORMAÇÕES DE PARCELAMENTO NA TABELA tbl_Pagamentos
+def inserir_parcelamento(id_recibo, cliente, telefone, tipo_pagamento, numero_parcela, valor, data_vencimento):
+    comando = f"""
+        INSERT INTO tbl_Pagamentos (Id_Recibo, Cliente, Telefone, Tipo_Pagamento, Numero_Parcela, Valor, Data_Vencimento)
+        VALUES ({id_recibo}, '{cliente}', '{telefone}', '{tipo_pagamento}', {numero_parcela}, {valor}, '{data_vencimento}')
+    """
+    cursor.execute(comando)
+    conexao.commit()
 # Lista para armazenar os itens temporariamente antes de finalizar a compra
 itens_temp = []
 # Lista para armazenar os itens da sacola
@@ -240,6 +250,11 @@ col3 = [
     [sg.Text('Valor total:', font=('Arial', 20),size=(20, 1)), sg.Text('', size=(20, 1), key='valor',font=('Arial', 20))],
     [sg.Button('Adicionar item',font=('Arial', 20)), sg.Button('Finalizar compra',font=('Arial', 20)), sg.Button('Cancelar',font=('Arial', 20)),sg.Button('CEP',font=('Arial', 20))], 
     [sg.Button('Consultar Estoque',font=('Arial', 20))],
+    [sg.Text('Quantidade de parcelas:', font=('Arial', 20), size=(20, 1)),
+     sg.InputCombo(['à vista', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'], key='quantidade_parcelas', font=('Arial', 20))],
+
+    [sg.Text('Dia de pagamento:', font=('Arial', 20), size=(20, 1)),
+     sg.Input(key='dia_pagamento', font=('Arial', 20))],
     [sg.Text('Salvar arquivo como :', font=('Arial', 20),size=(20, 1)), sg.Input(key='Nome do arquivo',font=('Arial', 20))],
     [sg.Image(r'D:\Projetos\workspace Python\Sistema_Loja\LOGO.png',size=(500, 500), pad=(100, 10))],
     [sg.Text("Pasta de destino"), sg.FileSaveAs()],
@@ -444,6 +459,18 @@ while True:
         sacola_de_compra = []
         window["-SACOLA-TABLE-"].update(values=sacola_de_compra)
         
+        # Calcula o valor total da compra
+        valor_total = sum(item[4] for item in carrinho)
+        
+        # Insere informações de parcelamento na tabela
+        quantidade_parcelas = int(values['quantidade_parcelas'])
+        dia_pagamento = values['dia_pagamento']
+        
+        valor_parcela = valor_total / quantidade_parcelas
+        for parcela_numero in range(1, quantidade_parcelas + 1):
+            data_vencimento = datetime.now() + timedelta(days=30 * parcela_numero)  # Exemplo de cálculo de data de vencimento
+            
+            inserir_parcelamento(id_recibo, Nome_cliente, Telefone_cliente, 'Parcelado', parcela_numero, valor_parcela, data_vencimento.strftime('%Y-%m-%d'))
         
                 # Crie a mensagem com base nas informações dos itens
         mensagem_itens = ""
