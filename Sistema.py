@@ -2,11 +2,11 @@ import PySimpleGUI as sg
 import fpdf
 import random
 import os
-import urllib
 import pyodbc
 import pywhatkit as kit
 from datetime import datetime, timedelta
-import time
+import requests
+
 
 
 dados_conexao = (
@@ -15,10 +15,35 @@ dados_conexao = (
     "Database=Fornecedores_jcstore;"
 )
 
+numeros = range(1,100000)
+momento = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+codigo_venda= random.choice(numeros)
+
+# Lista para armazenar os itens temporariamente antes de finalizar a compra
+itens_temp = []
+# Lista para armazenar os itens da sacola
+sacola_de_compra = []
+# Lista de cabeçalhos para a tabela de itens da sacola
+headers = ["Código de venda","Produto", "Preço", "Quantidade", "Desconto", "Valor Total"]
+# Função para buscar o CEP e preencher os campos no seu sistema
+def busca_cep():
+    cep = sg.popup_get_text('Digite o CEP:', 'Busca de CEP')
+    if cep:
+        url = f"https://viacep.com.br/ws/{cep}/json/"
+        resposta = requests.get(url)
+        if resposta.status_code == 200:
+            endereco = resposta.json()
+            window['Bairro'].update(endereco["bairro"].upper())
+            window['Cidade'].update(endereco["localidade"].upper())
+            window['Estado'].update(endereco["uf"].upper())
+            window['Rua'].update(endereco["logradouro"].upper())
+        else:
+            sg.popup_error("Erro", "CEP não encontrado")
 agora = datetime.now()  # Obtém a data e hora atual
 
 conexao = pyodbc.connect(dados_conexao)
 print("Conexao bem sucedida !")
+
 
 cursor = conexao.cursor()
 current_time_atual = datetime.now().strftime("%d/%m/%Y")
@@ -126,22 +151,25 @@ def consulta_Tamanho(codigo):
 
 # sg.theme('DarkAmber')
 # função para gerar recibo da compra
-numeros = range(1,100000)
-momento = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-codigo_venda= random.choice(numeros)
+# numeros = range(1,100000)
+# momento = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+# codigo_venda= random.choice(numeros)
 
 
-def gera_recibo(carrinho):
+def gera_recibo(carrinho, id_recib):
+    # Crie o objeto PDF
     pdf = fpdf.FPDF(format='letter')
     pdf.add_page()
-    pdf.set_font("Arial", size=9)  # Aumenta o tamanho da fonte
+    pdf.set_font("Arial", size=9)
 
+   
     pdf.cell(200, 10, txt="RECIBO DE COMPRA", ln=1, align="C")
     pdf.cell(200, 10, txt="Momento da compra {}".format(momento), ln=1, align="C")
-    pdf.cell(2, 10, txt="ID Venda: {}".format(codigo_venda), ln=1)
+    pdf.cell(2, 10, txt="Código da venda: {}".format(codigo_venda), ln=1)
     pdf.cell(200, 10, txt="ITENS COMPRADOS:", ln=1, align="L")
 
     for item in carrinho:
+       
         # Inclui tamanho, cor e marca no comprovante
        # Criar uma única célula para cada item de compra
         linha = f"Produto: {item[0]} | Marca: {item[5]} | Cor: {item[6]} | Tamanho: {item[7]} | Preço: R${item[1]:.2f} | Quantidade: {item[2]} | Desconto: {item[3]}% | Valor total: R${item[4]:.2f}"
@@ -163,6 +191,9 @@ def gera_recibo(carrinho):
     pdf.cell(200, 10, txt=f"Total da compra: R${total_compra:.2f}", ln=1, align="R")
     pdf.cell(200, 10, txt=f"Cliente: {Nome_cliente}", ln=1, align="R")
 
+    # Carregue a imagem do logotipo
+    logo_path = r'D:\Projetos\workspace Python\Sistema_Loja\LOGO.png'
+    pdf.image(logo_path, x=10, y=pdf.get_y(), w=50)  # Ajuste os valores conforme necessário
     # Aumenta o espaço entre as células
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.output("recibo.pdf")
@@ -177,7 +208,7 @@ col1 = [
     [sg.Text('Fornecedor:', font=('Arial', 20),size=(20, 1)), sg.Input(key='fornecedor',font=('Arial', 20))],
     [sg.Text('Tipo de Movimentação:', font=('Arial', 20), size=(20, 1)),
     sg.InputCombo(['entrada', 'saída'], key='tipo_movimentacao', font=('Arial', 20))],
-    [sg.Text('Quantidade comprada:', font=('Arial', 20), size=(20, 1)), sg.Input(key='Qtde_comprada', font=('Arial', 20))],
+    [sg.Text('Estoque:', font=('Arial', 20), size=(20, 1)), sg.Input(key='Qtde_comprada', font=('Arial', 20))],
     [sg.Text('Preco compra:', font=('Arial', 20),size=(20, 1)), sg.Input(key='Preco_compra',font=('Arial', 20))],
     [sg.Text('Data cadastro:', font=('Arial', 20),size=(20, 1)), sg.Input(key='data_cadastro',font=('Arial', 20))],
     [sg.Text('Data movimentacao:', font=('Arial', 20),size=(20, 1)), sg.Input(key='data_movimentacao',font=('Arial', 20),default_text = current_time_atual)],
@@ -214,8 +245,20 @@ col3 = [
     [sg.Text("Pasta de destino"), sg.FileSaveAs()],
 ]
 
-layout = [    [sg.Column(col1, vertical_alignment='top'), sg.Column(col3)],
-  ]
+# Layout da interface
+layout = [
+    [
+        sg.Column(col1, vertical_alignment='top'), 
+        sg.Column(col3),
+        sg.Frame("Itens na Sacola", [
+            [sg.Table(values=sacola_de_compra, headings=headers, display_row_numbers=False,
+                       auto_size_columns=False, num_rows=80, vertical_scroll_only=True,
+                       justification='right', key="-SACOLA-TABLE-", background_color='white',
+                       text_color='black')]
+        ], background_color='white', title_color='black')
+    ]
+]
+
 
 window = sg.Window('Sistema de comércio', layout, size=(1800,800), 
 resizable=True, auto_size_text=True, 
@@ -299,7 +342,7 @@ while True:
 
         window['valor'].update(f"R${valor:.2f}")
 
-        carrinho.append((values['Tipo_Produto'], preco, quantidade_movimentada, desconto, valor,marca,cor,tamanho))
+        carrinho.append((values['Tipo_Produto'], preco, quantidade_movimentada, desconto, valor,marca,cor,tamanho,codigo_venda))
 
         Cod_produto = values['codigo']
         Fornecedor = values['fornecedor']
@@ -331,9 +374,11 @@ while True:
         Qtde_entrada = quantidade_entrada if Tipo_movimentacao == 'entrada' else 0
 
        
-        comando = f"""INSERT INTO tbl_Vendas(Cod_produto,Fornecedor,Tipo_movimentacao,Qtde_comprada,Preco_compra,Data_cadastro,Data_movimentacao,Tipo_Produto,Qualidade,Modelo_produto,Marca,Cor,Tamanho,Nome_cliente,Telefone_cliente,Sexo_cliente,Estado,Cidade,Bairro,Rua,Complemento,Numero,Preco_venda,Qtde_entrada,Qtde_vendida)
-                    VALUES 
-                    ('{Cod_produto}','{Fornecedor}','{Tipo_movimentacao}',{Qtde_comprada},{Preco_compra},'{Data_cadastro}','{Data_movimentacao}','{Tipo_Produto}','{Qualidade}','{Modelo_produto}','{Marca}','{Cor}','{Tamanho}', '{Nome_cliente}', '{Telefone_cliente}','{Sexo_cliente}','{Estado}','{Cidade}','{Bairro}','{Rua}','{Complemento}','{Numero}',{Preco_venda},{Qtde_entrada},{Qtde_vendida})"""
+          
+        comando = f"""INSERT INTO tbl_Vendas(Cod_produto, Fornecedor, Tipo_movimentacao, Qtde_comprada, Preco_compra, Data_cadastro, Data_movimentacao, Tipo_Produto, Qualidade, Modelo_produto, Marca, Cor, Tamanho, Nome_cliente, Telefone_cliente, Sexo_cliente, Estado, Cidade, Bairro, Rua, Complemento, Numero, Preco_venda, Qtde_entrada, Qtde_vendida, Id_Recibo)
+            VALUES
+            ('{Cod_produto}', '{Fornecedor}', '{Tipo_movimentacao}', {Qtde_comprada}, {Preco_compra}, '{Data_cadastro}', '{Data_movimentacao}', '{Tipo_Produto}', '{Qualidade}', '{Modelo_produto}', '{Marca}', '{Cor}', '{Tamanho}', '{Nome_cliente}', '{Telefone_cliente}', '{Sexo_cliente}', '{Estado}', '{Cidade}', '{Bairro}', '{Rua}', '{Complemento}', '{Numero}', {Preco_venda}, {Qtde_entrada}, {Qtde_vendida}, '{codigo_venda}')"""
+
 
         cursor.execute(comando)
         cursor.commit()
@@ -369,12 +414,15 @@ while True:
         window.FindElement('desconto').Update('')
         window.FindElement('tipo_movimentacao').Update('')
      
-
+         # Atualizar a tabela de itens da sacola
+        sacola_de_compra.append([values['Tipo_Produto'], f"R${preco:.2f}", quantidade_movimentada, f"{desconto}%", f"R${valor:.2f}"])
+        window["-SACOLA-TABLE-"].update(values=sacola_de_compra)
         
  
         # verifica se o botão Finalizar compra foi clicado
     elif event == 'Finalizar compra':
-        gera_recibo(carrinho)
+        id_recibo = codigo_venda  # Use o ID de venda gerado pelo seu código
+        gera_recibo(carrinho, id_recibo)
         new_file_name = values["Nome do arquivo"]+ ".pdf"
         os.rename("recibo.pdf", new_file_name)
         sg.popup('Compra finalizada com sucesso!', 'O recibo da compra foi gerado com sucesso e está disponível .')
@@ -392,7 +440,11 @@ while True:
         window.FindElement('Rua').Update('')
         window.FindElement('Complemento').Update('')
         window.FindElement('Numero').Update('')
-
+        # Limpar tabela de sacola
+        sacola_de_compra = []
+        window["-SACOLA-TABLE-"].update(values=sacola_de_compra)
+        
+        
                 # Crie a mensagem com base nas informações dos itens
         mensagem_itens = ""
         valor_total_sem_desconto = 0
@@ -402,7 +454,8 @@ while True:
             valor_desconto = (item[1] * item[2] * item[3] / 100)  # Preço * Quantidade * Desconto
             valor_total_com_desconto += item[4]  # Valor total do item após desconto
 
-            mensagem_itens += f"""- Produto: *{item[0]}*
+            mensagem_itens += f""" - Código de venda : *{item[8]}*
+                - Produto: *{item[0]}*
                 - Marca : *{item[5]}*
                 - Cor : *{item [6]}*
                 - Tamanho: *{item[7]}*
@@ -438,6 +491,10 @@ while True:
             break
         else:
             kit.sendwhatmsg(telefone_completo, mensagem, hora_envio, minuto_envio)
+
+            # Verifica se o botão 'CEP' foi clicado
+    if event == 'CEP':
+        busca_cep()
     if event == sg.WIN_CLOSED or event == 'Exit':  # Adiciona evento para fechamento da janela ao clicar no X ou em um botão "Exit"
         break
     # verifica se o botão Cancelar foi clicado
