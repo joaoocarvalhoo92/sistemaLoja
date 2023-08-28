@@ -1,3 +1,4 @@
+
 import PySimpleGUI as sg
 import fpdf
 import random
@@ -6,7 +7,6 @@ import pyodbc
 import pywhatkit as kit
 from datetime import datetime, timedelta
 import requests
-
 
 
 dados_conexao = (
@@ -29,6 +29,9 @@ def inserir_parcelamento(id_recibo, cliente, telefone, tipo_pagamento, numero_pa
     """
     cursor.execute(comando)
     conexao.commit()
+
+# Lista de cabeçalhos para a tabela de itens da sacola
+headers = ["Produto", "Preço", "Quantidade", "Desconto", "Valor Total"]   
 # Lista para armazenar os itens temporariamente antes de finalizar a compra
 itens_temp = []
 # Lista para armazenar os itens da sacola
@@ -57,6 +60,7 @@ print("Conexao bem sucedida !")
 
 cursor = conexao.cursor()
 current_time_atual = datetime.now().strftime("%d/%m/%Y")
+
 # FUNÇÃO PARA BUSCAR ESTOQUE ATUAL
 def consulta_estoque(codigo):
     cursor.execute(f"SELECT TOP 1 Saldo FROM tbl_Vendas WHERE Cod_produto = '{codigo}' ORDER BY ID_movimentacao DESC")
@@ -139,6 +143,15 @@ def consulta_Cor(codigo):
         return result[0]
     else:
         return 0
+    
+    # FUNÇÃO PARA BUSCAR Preço de venda DO ID
+def consulta_Preco(codigo):
+    cursor.execute(f"SELECT TOP 1 Preco_venda FROM tbl_Vendas WHERE Cod_produto = '{codigo}' ORDER BY ID_movimentacao DESC")
+    result = cursor.fetchone()
+    if result:
+        return result[0]
+    else:
+        return 0
 
 # FUNÇÃO PARA BUSCAR Dias_em_estoque DO ID
 # def consulta_Dias_em_estoque(codigo):
@@ -158,12 +171,6 @@ def consulta_Tamanho(codigo):
     else:
         return 0
 
-
-# sg.theme('DarkAmber')
-# função para gerar recibo da compra
-# numeros = range(1,100000)
-# momento = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-# codigo_venda= random.choice(numeros)
 
 
 def gera_recibo(carrinho, id_recib):
@@ -250,15 +257,18 @@ col3 = [
     [sg.Text('Valor total:', font=('Arial', 20),size=(20, 1)), sg.Text('', size=(20, 1), key='valor',font=('Arial', 20))],
     [sg.Button('Adicionar item',font=('Arial', 20)), sg.Button('Finalizar compra',font=('Arial', 20)), sg.Button('Cancelar',font=('Arial', 20)),sg.Button('CEP',font=('Arial', 20))], 
     [sg.Button('Consultar Estoque',font=('Arial', 20))],
+    [sg.Button('Contas a Receber',font=('Arial', 20))],
     [sg.Text('Quantidade de parcelas:', font=('Arial', 20), size=(20, 1)),
-     sg.InputCombo(['à vista', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'], key='quantidade_parcelas', font=('Arial', 20))],
+     sg.InputCombo([ '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'], key='quantidade_parcelas', font=('Arial', 20))],
 
     [sg.Text('Dia de pagamento:', font=('Arial', 20), size=(20, 1)),
      sg.Input(key='dia_pagamento', font=('Arial', 20))],
     [sg.Text('Salvar arquivo como :', font=('Arial', 20),size=(20, 1)), sg.Input(key='Nome do arquivo',font=('Arial', 20))],
     [sg.Image(r'D:\Projetos\workspace Python\Sistema_Loja\LOGO.png',size=(500, 500), pad=(100, 10))],
     [sg.Text("Pasta de destino"), sg.FileSaveAs()],
+    
 ]
+
 
 # Layout da interface
 layout = [
@@ -329,6 +339,9 @@ while True:
 
             cor = consulta_Cor(codigo_produto)
             window['Cor'].update(cor)
+
+            preco = consulta_Preco(codigo_produto)
+            window['preco'].update(preco)
             
 
             # dias_em_estoque = consulta_Dias_em_estoque(codigo_produto)
@@ -430,7 +443,7 @@ while True:
         window.FindElement('tipo_movimentacao').Update('')
      
          # Atualizar a tabela de itens da sacola
-        sacola_de_compra.append([values['Tipo_Produto'], f"R${preco:.2f}", quantidade_movimentada, f"{desconto}%", f"R${valor:.2f}"])
+        sacola_de_compra.append([codigo_venda,values['Tipo_Produto'], f"R${preco:.2f}", quantidade_movimentada, f"{desconto}%", f"R${valor:.2f}"])
         window["-SACOLA-TABLE-"].update(values=sacola_de_compra)
         
  
@@ -465,15 +478,21 @@ while True:
         # Insere informações de parcelamento na tabela
         quantidade_parcelas = int(values['quantidade_parcelas'])
         dia_pagamento = values['dia_pagamento']
-        
+        if quantidade_parcelas <=1:
+            status = 'à vista'
+        else:
+            status = 'parcelado'
+
         valor_parcela = valor_total / quantidade_parcelas
         for parcela_numero in range(1, quantidade_parcelas + 1):
             data_vencimento = datetime.now() + timedelta(days=30 * parcela_numero)  # Exemplo de cálculo de data de vencimento
             
-            inserir_parcelamento(id_recibo, Nome_cliente, Telefone_cliente, 'Parcelado', parcela_numero, valor_parcela, data_vencimento.strftime('%Y-%m-%d'))
+            inserir_parcelamento(id_recibo, Nome_cliente, Telefone_cliente, status, parcela_numero, valor_parcela, data_vencimento.strftime('%Y-%m-%d'))
         
                 # Crie a mensagem com base nas informações dos itens
         mensagem_itens = ""
+        numero_parcelas = 0
+        valor_parcelado = 0
         valor_total_sem_desconto = 0
         valor_total_com_desconto = 0
         for item in carrinho:
