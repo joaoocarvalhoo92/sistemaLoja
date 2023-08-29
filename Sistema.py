@@ -19,6 +19,17 @@ numeros = range(1,100000)
 momento = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
 codigo_venda= random.choice(numeros)
 
+def calcular_valor_total(values):
+    preco = float(values['preco'])
+    desconto = float(values['desconto'])
+
+    quantidade_venda = int(values['quantidade_venda']) if values['tipo_movimentacao'] == 'saída' else 0
+    quantidade_entrada = int(values['quantidade_entrada']) if values['tipo_movimentacao'] == 'entrada' else 0
+
+    quantidade_movimentada = quantidade_venda or quantidade_entrada
+
+    valor = preco * quantidade_movimentada * (1 - desconto / 100)
+    return valor
 
 
 # FUNÇÃO PARA INSERIR INFORMAÇÕES DE PARCELAMENTO NA TABELA tbl_Pagamentos
@@ -52,6 +63,7 @@ def busca_cep():
             window['Rua'].update(endereco["logradouro"].upper())
         else:
             sg.popup_error("Erro", "CEP não encontrado")
+            
 agora = datetime.now()  # Obtém a data e hora atual
 
 conexao = pyodbc.connect(dados_conexao)
@@ -60,6 +72,7 @@ print("Conexao bem sucedida !")
 
 cursor = conexao.cursor()
 current_time_atual = datetime.now().strftime("%d/%m/%Y")
+hora_atual = datetime.now().strftime("%H:%M:%S")
 
 # FUNÇÃO PARA BUSCAR ESTOQUE ATUAL
 def consulta_estoque(codigo):
@@ -177,7 +190,7 @@ def gera_recibo(carrinho, id_recib):
     # Crie o objeto PDF
     pdf = fpdf.FPDF(format='letter')
     pdf.add_page()
-    pdf.set_font("Arial", size=9)
+    pdf.set_font("Arial", size=8)
 
    
     pdf.cell(200, 10, txt="RECIBO DE COMPRA", ln=1, align="C")
@@ -189,7 +202,7 @@ def gera_recibo(carrinho, id_recib):
        
         # Inclui tamanho, cor e marca no comprovante
        # Criar uma única célula para cada item de compra
-        linha = f"Produto: {item[0]} | Marca: {item[5]} | Cor: {item[6]} | Tamanho: {item[7]} | Preço: R${item[1]:.2f} | Quantidade: {item[2]} | Desconto: {item[3]}% | Valor total: R${item[4]:.2f}"
+        linha = f"Produto: {item[0]} |Marca: {item[5]} |Cor: {item[6]} |Tamanho: {item[7]} |Preço: R${item[1]:.2f} |Quantidade: {item[2]} |Desconto: {item[3]}% |Valor total: R${item[4]:.2f}"
         pdf.cell(200, 10, txt=linha, ln=1, align="L")
         pdf.cell(0, 5, txt="----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------", ln=1, align="C")
 
@@ -215,7 +228,6 @@ def gera_recibo(carrinho, id_recib):
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.output("recibo.pdf")
     print("Recibo gerado com sucesso!")
-
 
 
 col1 = [
@@ -254,10 +266,10 @@ col3 = [
     [sg.Text('Quantidade Venda:', font=('Arial', 20), size=(20, 1)),
      sg.Input(key='quantidade_venda', font=('Arial', 20), disabled=True)],
     [sg.Text('Desconto:', font=('Arial', 20),size=(20, 1)), sg.Input(key='desconto',font=('Arial', 20))],
-    [sg.Text('Valor total:', font=('Arial', 20),size=(20, 1)), sg.Text('', size=(20, 1), key='valor',font=('Arial', 20))],
+    [sg.Text('Valor total:', font=('Arial', 20),size=(20, 1)), sg.Text('R$0.00', size=(20, 1), key='valor',font=('Arial', 20))],
     [sg.Button('Adicionar item',font=('Arial', 20)), sg.Button('Finalizar compra',font=('Arial', 20)), sg.Button('Cancelar',font=('Arial', 20)),sg.Button('CEP',font=('Arial', 20))], 
     [sg.Button('Consultar Estoque',font=('Arial', 20))],
-    [sg.Button('Contas a Receber',font=('Arial', 20))],
+    [sg.Button('Calcular Desconto',font=('Arial', 20))],
     [sg.Text('Quantidade de parcelas:', font=('Arial', 20), size=(20, 1)),
      sg.InputCombo([ '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'], key='quantidade_parcelas', font=('Arial', 20))],
 
@@ -505,6 +517,8 @@ while True:
                 - Marca : *{item[5]}*
                 - Cor : *{item [6]}*
                 - Tamanho: *{item[7]}*
+                - Data da compra: *{Data_movimentacao}*\n
+                - Horário da compra: *{hora_atual}*\n\n
                 - Preço de compra: *R${item[1]:.2f}*
                 - Quantidade comprada: *{item[2]}*
                 - Desconto aplicado: *{item[3]}%*
@@ -515,8 +529,6 @@ while True:
                *JOHN CARVALHO STORE* agradece a preferência. Abaixo está os dados da sua compra:\n\n
                Detalhes da compra:\n
                {mensagem_itens}
-               - Data da compra: *{Data_movimentacao}*\n
-               - Horário da compra: *{current_time}*\n\n
                - Valor total sem desconto: *R${valor_total_sem_desconto:.2f}*
                - Valor total com desconto: *R${valor_total_com_desconto:.2f}*\n\n
                O link para o comprovante da compra está disponível \n
@@ -533,7 +545,7 @@ while True:
         hora_envio = horario_envio.hour
         minuto_envio = horario_envio.minute
 
-        if Tipo_movimentacao == 'entrada':
+        if Tipo_movimentacao == 'entrada' or Telefone_cliente =='':
             break
         else:
             kit.sendwhatmsg(telefone_completo, mensagem, hora_envio, minuto_envio)
@@ -543,6 +555,9 @@ while True:
         busca_cep()
     if event == sg.WIN_CLOSED or event == 'Exit':  # Adiciona evento para fechamento da janela ao clicar no X ou em um botão "Exit"
         break
+    elif event == 'Calcular':
+        valor_total = calcular_valor_total(values)
+        window['valor'].update(f"R${valor_total:.2f}")
     # verifica se o botão Cancelar foi clicado
     elif event == 'Cancelar':
         break
