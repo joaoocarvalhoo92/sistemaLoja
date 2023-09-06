@@ -192,18 +192,20 @@ def gera_recibo(carrinho, id_recib):
     pdf.add_page()
     pdf.set_font("Arial", size=8)
 
+    
+
    
-    pdf.cell(200, 10, txt="RECIBO DE COMPRA", ln=1, align="C")
-    pdf.cell(200, 10, txt="Momento da compra {}".format(momento), ln=1, align="C")
-    pdf.cell(2, 10, txt="Código da venda: {}".format(codigo_venda), ln=1)
-    pdf.cell(200, 10, txt="ITENS COMPRADOS:", ln=1, align="L")
+    pdf.cell(200, 13, txt="RECIBO DE COMPRA", ln=1, align="C")
+    pdf.cell(200, 13, txt="Finalização da compra {}".format(momento), ln=1, align="C")
+    pdf.cell(2, 13, txt="Código da venda: {}".format(codigo_venda), ln=1)
+    pdf.cell(200, 13, txt="ITENS COMPRADOS:", ln=1, align="L")
 
     for item in carrinho:
        
         # Inclui tamanho, cor e marca no comprovante
        # Criar uma única célula para cada item de compra
         linha = f"Produto: {item[0]} |Marca: {item[5]} |Cor: {item[6]} |Tamanho: {item[7]} |Preço: R${item[1]:.2f} |Quantidade: {item[2]} |Desconto: {item[3]}% |Valor total: R${item[4]:.2f}"
-        pdf.cell(200, 10, txt=linha, ln=1, align="L")
+        pdf.cell(200, 13, txt=linha, ln=1, align="L")
         pdf.cell(0, 5, txt="----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------", ln=1, align="C")
 
 
@@ -218,14 +220,15 @@ def gera_recibo(carrinho, id_recib):
         
 
     total_compra = sum([item[4] for item in carrinho])
-    pdf.cell(200, 10, txt=f"Total da compra: R${total_compra:.2f}", ln=1, align="R")
-    pdf.cell(200, 10, txt=f"Cliente: {Nome_cliente}", ln=1, align="R")
+    pdf.cell(200, 13, txt=f"Total da compra: R${total_compra:.2f}", ln=1, align="R")
+    pdf.cell(200, 13, txt=f"Cliente: {Nome_cliente}", ln=1, align="R")
 
     # Carregue a imagem do logotipo
     logo_path = r'D:\Projetos\workspace Python\Sistema_Loja\LOGO.png'
-    pdf.image(logo_path, x=10, y=pdf.get_y(), w=50)  # Ajuste os valores conforme necessário
+    # Posicione o logotipo na parte superior da página
+    pdf.image(logo_path, x=4, y=4, w=65)  # Ajuste os valores conforme necessário  # Ajuste os valores conforme necessário
     # Aumenta o espaço entre as células
-    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.set_auto_page_break(auto=True, margin=20)
     pdf.output("recibo.pdf")
     print("Recibo gerado com sucesso!")
 
@@ -266,7 +269,7 @@ col3 = [
     [sg.Text('Quantidade Venda:', font=('Arial', 20), size=(20, 1)),
      sg.Input(key='quantidade_venda', font=('Arial', 20), disabled=True)],
     [sg.Text('Desconto:', font=('Arial', 20),size=(20, 1)), sg.Input(key='desconto',font=('Arial', 20))],
-    [sg.Text('Valor total:', font=('Arial', 20),size=(20, 1)), sg.Text('R$0.00', size=(20, 1), key='valor',font=('Arial', 20))],
+    [sg.Text('Valor total:', font=('Arial', 20),size=(20, 1)), sg.Input(key='valor',font=('Arial', 20))],
     [sg.Button('Adicionar item',font=('Arial', 20)), sg.Button('Finalizar compra',font=('Arial', 20)), sg.Button('Cancelar',font=('Arial', 20)),sg.Button('CEP',font=('Arial', 20))], 
     [sg.Button('Consultar Estoque',font=('Arial', 20))],
     [sg.Button('Calcular Desconto',font=('Arial', 20))],
@@ -405,7 +408,7 @@ while True:
         Rua = values['Rua']
         Complemento = values['Complemento']
         Numero = values['Numero']
-        Preco_venda = float(values['preco'])
+        Preco_venda = (valor)
         
 
         Qtde_vendida = quantidade_venda if Tipo_movimentacao == 'saída' else 0
@@ -458,12 +461,16 @@ while True:
         sacola_de_compra.append([codigo_venda,values['Tipo_Produto'], f"R${preco:.2f}", quantidade_movimentada, f"{desconto}%", f"R${valor:.2f}"])
         window["-SACOLA-TABLE-"].update(values=sacola_de_compra)
         
- 
+        nCliente = values['Nome_cliente']
+        
         # verifica se o botão Finalizar compra foi clicado
     elif event == 'Finalizar compra':
+
         id_recibo = codigo_venda  # Use o ID de venda gerado pelo seu código
+
         gera_recibo(carrinho, id_recibo)
-        new_file_name = values["Nome do arquivo"]+ ".pdf"
+        file_name = "recibo.pdf"
+        new_file_name = f"Cliente-{nCliente} pedido-{id_recibo}.pdf"
         os.rename("recibo.pdf", new_file_name)
         sg.popup('Compra finalizada com sucesso!', 'O recibo da compra foi gerado com sucesso e está disponível .')
         window.FindElement('Nome do arquivo').Update('')
@@ -517,18 +524,19 @@ while True:
                 - Marca : *{item[5]}*
                 - Cor : *{item [6]}*
                 - Tamanho: *{item[7]}*
-                - Data da compra: *{Data_movimentacao}*\n
-                - Horário da compra: *{hora_atual}*\n\n
                 - Preço de compra: *R${item[1]:.2f}*
                 - Quantidade comprada: *{item[2]}*
                 - Desconto aplicado: *{item[3]}%*
                 - Valor antes do desconto: *R${item[1] * item[2]:.2f}*
-                - Valor total com *DESCONTO*: *R${item[4]:.2f}*\n\n"""
+                - Valor total com *DESCONTO*: *R${item[4]:.2f}*\n\n
+                -----------------------------------------"""
 
         mensagem = f"""*Obrigado* por comprar conosco, *{Nome_cliente}!*\n\n
                *JOHN CARVALHO STORE* agradece a preferência. Abaixo está os dados da sua compra:\n\n
-               Detalhes da compra:\n
+               *DETALHES DA COMPRA:*\n
                {mensagem_itens}
+               - Data da compra: *{Data_movimentacao}*\n
+                - Horário da compra: *{hora_atual}*\n\n
                - Valor total sem desconto: *R${valor_total_sem_desconto:.2f}*
                - Valor total com desconto: *R${valor_total_com_desconto:.2f}*\n\n
                O link para o comprovante da compra está disponível \n
@@ -555,7 +563,7 @@ while True:
         busca_cep()
     if event == sg.WIN_CLOSED or event == 'Exit':  # Adiciona evento para fechamento da janela ao clicar no X ou em um botão "Exit"
         break
-    elif event == 'Calcular':
+    elif event == 'Calcular Desconto':
         valor_total = calcular_valor_total(values)
         window['valor'].update(f"R${valor_total:.2f}")
     # verifica se o botão Cancelar foi clicado
@@ -563,4 +571,3 @@ while True:
         break
     
 
-window.close()
