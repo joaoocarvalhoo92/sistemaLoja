@@ -199,36 +199,34 @@ def gera_recibo(carrinho, id_recib):
     pdf.cell(200, 13, txt="Finalização da compra {}".format(momento), ln=1, align="C")
     pdf.cell(2, 13, txt="Código da venda: {}".format(codigo_venda), ln=1)
     pdf.cell(200, 13, txt="ITENS COMPRADOS:", ln=1, align="L")
+    # Carregue a imagem do logotipo
+    logo_path = r'D:\Projetos\workspace Python\Sistema_Loja\LOGO.png'
+        # Posicione o logotipo na parte superior da página
+    pdf.image(logo_path, x=4, y=4, w=65)  # Ajuste os valores conforme necessário  # Ajuste os valores conforme necessário
 
     for item in carrinho:
-       
-        # Inclui tamanho, cor e marca no comprovante
-       # Criar uma única célula para cada item de compra
-        linha = f"Produto: {item[0]} |Marca: {item[5]} |Cor: {item[6]} |Tamanho: {item[7]} |Preço: R${item[1]:.2f} |Quantidade: {item[2]} |Desconto: {item[3]}% |Valor total: R${item[4]:.2f}"
-        pdf.cell(200, 13, txt=linha, ln=1, align="L")
+        # linha = f"Produto: {item[0]} |Marca: {item[5]} |Cor: {item[6]} |Tamanho: {item[7]} |Preço: R${item[1]:.2f} |Quantidade: {item[2]} |Desconto: {item[3]}% |Valor total: R${item[4]:.2f}"
+        # pdf.cell(200, 13, txt=linha, ln=1, align="L")
         pdf.cell(0, 5, txt="----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------", ln=1, align="C")
 
-
-
-        # pdf.cell(200, 10, txt=f"  - Marca: {item[5]}", ln=1, align="L")
-        # pdf.cell(200, 10, txt=f"  - Cor: {item[6]}", ln=1, align="L")
-        # pdf.cell(200, 10, txt=f"  - Tamanho: {item[7]}", ln=1, align="L")
-        # pdf.cell(200, 10, txt=f"  - Preço: R${item[1]:.2f}", ln=1, align="L")
-        # pdf.cell(200, 10, txt=f"  - Quantidade: {item[2]}", ln=1, align="L")
-        # pdf.cell(200, 10, txt=f"  - Desconto: {item[3]}%", ln=1, align="L")
-        # pdf.cell(200, 10, txt=f"  - Valor total: R${item[4]:.2f}", ln=1, align="L")
+    
+        pdf.cell(200, 5, txt=f"  - Produto: {item[0]}", ln=1, align="L")
+        pdf.cell(200, 5, txt=f"  - Marca: {item[5]}", ln=1, align="L")
+        pdf.cell(200, 5, txt=f"  - Cor: {item[6]}", ln=1, align="L")
+        pdf.cell(200, 5, txt=f"  - Tamanho: {item[7]}", ln=1, align="L")
+        pdf.cell(200, 5, txt=f"  - Preço: R${item[1]:.2f}", ln=1, align="L")
+        pdf.cell(200, 5, txt=f"  - Quantidade: {item[2]}", ln=1, align="L")
+        pdf.cell(200, 5, txt=f"  - Desconto: {item[3]}%", ln=1, align="L")
+        pdf.cell(200, 5, txt=f"  - Valor total: R${item[4]:.2f}", ln=1, align="L")
         
 
     total_compra = sum([item[4] for item in carrinho])
-    pdf.cell(200, 13, txt=f"Total da compra: R${total_compra:.2f}", ln=1, align="R")
-    pdf.cell(200, 13, txt=f"Cliente: {Nome_cliente}", ln=1, align="R")
+    pdf.cell(200, 7, txt=f"Total da compra: R${total_compra:.2f}", ln=1, align="R")
+    pdf.cell(200, 7, txt=f"Cliente: {Nome_cliente}", ln=1, align="R")
 
-    # Carregue a imagem do logotipo
-    logo_path = r'D:\Projetos\workspace Python\Sistema_Loja\LOGO.png'
-    # Posicione o logotipo na parte superior da página
-    pdf.image(logo_path, x=4, y=4, w=65)  # Ajuste os valores conforme necessário  # Ajuste os valores conforme necessário
+    
     # Aumenta o espaço entre as células
-    pdf.set_auto_page_break(auto=True, margin=20)
+    pdf.set_auto_page_break(auto=True, margin=5)
     pdf.output("recibo.pdf")
     print("Recibo gerado com sucesso!")
 
@@ -519,29 +517,31 @@ while True:
             valor_desconto = (item[1] * item[2] * item[3] / 100)  # Preço * Quantidade * Desconto
             valor_total_com_desconto += item[4]  # Valor total do item após desconto
 
-            mensagem_itens += f""" - Código de venda : *{item[8]}*
-                - Produto: *{item[0]}*
-                - Marca : *{item[5]}*
-                - Cor : *{item [6]}*
-                - Tamanho: *{item[7]}*
-                - Preço de compra: *R${item[1]:.2f}*
-                - Quantidade comprada: *{item[2]}*
-                - Desconto aplicado: *{item[3]}%*
-                - Valor antes do desconto: *R${item[1] * item[2]:.2f}*
-                - Valor total com *DESCONTO*: *R${item[4]:.2f}*\n\n
-                -----------------------------------------"""
+            mensagem_itens += f""" 
+- Código de venda : *{item[8]}*
+- Produto: *{item[0]}*
+- Marca : *{item[5]}*
+- Cor : *{item [6]}*
+- Tamanho: *{item[7]}*
+- Preço de compra: *R${item[1]:.2f}*
+- Quantidade comprada: *{item[2]}*
+- Desconto aplicado: *{item[3]}%*
+- Valor antes do desconto: *R${item[1] * item[2]:.2f}*
+- Valor total com *DESCONTO*: *R${item[4]:.2f}*\n\n
+-----------------------------------------"""
 
-        mensagem = f"""*Obrigado* por comprar conosco, *{Nome_cliente}!*\n\n
-               *JOHN CARVALHO STORE* agradece a preferência. Abaixo está os dados da sua compra:\n\n
-               *DETALHES DA COMPRA:*\n
-               {mensagem_itens}
-               - Data da compra: *{Data_movimentacao}*\n
-                - Horário da compra: *{hora_atual}*\n\n
-               - Valor total sem desconto: *R${valor_total_sem_desconto:.2f}*
-               - Valor total com desconto: *R${valor_total_com_desconto:.2f}*\n\n
-               O link para o comprovante da compra está disponível \n
-               Agradecemos novamente pela sua compra!\n
-               Equipe *JOHN CARVALHO STORE*"""
+        mensagem = f"""Olá *{Nome_cliente}, tudo bem? esperamos que sim 😁 !* \n 
+*Obrigado* por comprar conosco!\n\n
+*JOHN CARVALHO STORE* agradece a preferência. Abaixo estão os dados da sua compra:\n\n
+*DETALHES DA COMPRA:*\n
+{mensagem_itens}
+- Data da compra: *{Data_movimentacao}*\n
+- Horário da compra: *{hora_atual}*\n\n
+- Valor total sem desconto: *R${valor_total_sem_desconto:.2f}*
+- Valor total com desconto: *R${valor_total_com_desconto:.2f}*\n\n
+O seu comprovante da compra está disponível \n
+Agradecemos novamente pela sua preferência!\n
+Equipe *JOHN CARVALHO STORE*"""
 
         codigo_pais = "+55"
         numero_telefone = Telefone_cliente
